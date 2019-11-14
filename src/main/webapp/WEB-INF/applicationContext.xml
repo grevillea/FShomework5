@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:sec="http://www.springframework.org/schema/security"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:jdbc="http://www.springframework.org/schema/jdbc"
+       xmlns:p="http://www.springframework.org/schema/p" xmlns:mvc="http://www.springframework.org/schema/mvc"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+        http://www.springframework.org/schema/beans/spring-beans-4.0.xsd
+        http://www.springframework.org/schema/security
+        http://www.springframework.org/schema/security/spring-security-3.2.xsd
+        http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+        http://www.springframework.org/schema/jdbc http://www.springframework.org/schema/jdbc/spring-jdbc-4.0.xsd http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc.xsd">
+
+    <context:component-scan base-package="example"/>
+    <bean id="MemberServiceImpl" class="example.service.impl.MemberServiceImpl" />
+    <!-- 不拦截的页面，我下面这行在我这个案例中没意义，可以设置一些静态资源 或 下面配置拦截所有请求的时候，选择不拦截登录页面 -->
+    <sec:http pattern="/views/login.jsp" security="none"></sec:http>
+
+    <sec:http auto-config="false">
+        <!-- 对/admin** 的url进行拦截，只有拥有ROLE_USER权限的用户才能进入 -->
+        <sec:intercept-url pattern="/admin**" access="ROLE_USER" />
+        <!--
+            login-page="/login.jsp" 拦截以后重定向到自定义的登录页面
+            authentication-failure-url="/login.jsp"登录的用户没有 ROLE_USER权限跳转的页面
+            default-target-url="/admin"  登录的用户有  ROLE_USER权限跳转的页面
+        -->
+        <sec:form-login login-page="/views/login.jsp" authentication-failure-url="/views/login.jsp"
+                        default-target-url="/admin" />
+
+        <!--
+        		点击注销  跳转的页面
+       			与 <a href="<c:url value="/logout" />" > 注销</a> 配合使用
+         -->
+        <sec:logout logout-url="/logout" logout-success-url="/views/login.jsp" invalidate-session="true"/>
+    </sec:http>
+
+    <sec:authentication-manager>
+        <sec:authentication-provider user-service-ref="MemberServiceImpl">
+        <!--<sec:authentication-provider>
+            <sec:user-service>
+               给root 用户 配置 "ROLE_USER" 权限-
+                <sec:user name="root" password="123456" authorities="ROLE_USER" />
+            </sec:user-service>-->
+        </sec:authentication-provider>
+    </sec:authentication-manager>
+
+    <context:property-placeholder ignore-resource-not-found="true"
+                                      location="classpath*:/jdbc.properties" />
+    <!-- h2 Simple连接池
+    <bean id="dataSource" class="org.springframework.jdbc.datasource.SimpleDriverDataSource">
+        <property name="driverClass" value="org.h2.Driver" />
+        <property name="url" value="jdbc:h2:mem:test" />
+        <property name="username" value="root" />
+        <property name="password" value="123456" />
+    </bean>-->
+    <bean id="dataSource" class="org.springframework.jdbc.datasource.DriverManagerDataSource">
+        <property name="url" value="${jdbc_url}"/>
+        <property name="driverClassName" value="${jdbc_driverClassName}"/>
+        <property name="username" value="${jdbc_username}"/>
+        <property name="password" value="${jdbc_password}"/>
+    </bean>
+    <bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+        <property name="dataSource" ref="dataSource"></property>
+        <property name="typeAliasesPackage" value="example.pojo"/>
+        <!-- 自动扫描mapping.xml文件-->
+        <property name="mapperLocations" value="classpath:mapper/*-mapper.xml"></property>
+    </bean>
+    <bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+        <property name="basePackage" value="example.dao"></property>
+        <property name="SqlSessionFactoryBeanName" value="sqlSessionFactory"></property>
+    </bean>
+    <bean id="txManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+        <property name="dataSource" ref="dataSource"/>
+    </bean>
+
+</beans>
